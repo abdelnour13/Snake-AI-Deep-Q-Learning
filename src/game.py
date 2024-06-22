@@ -12,6 +12,11 @@ from common import Global
 
 pg.init()
 
+class Mode(Enum):
+    HUMAN_CONTROLLED = 0
+    TRAING_MODE = 1
+    AGENT_CONTROLLED = 2
+
 class GameState(Enum):
     STOPPED = 0
     RUNNING = 1
@@ -27,20 +32,34 @@ class Game:
             Global.CELLS_X * Global.CELL_WIDTH + 2 * Global.OFFSET,
             Global.CELLS_Y * Global.CELL_WIDTH + 2 * Global.OFFSET
         ))
+
         self.clock = pg.time.Clock()
         self.playground = Playgound(self.screen)
-        self.snake = Snake(self.screen, initial_position=(15,15), initial_length=3, initial_direction=Direction.RIGHT)
+
+        self.reset()
+
+        pg.time.set_timer(Game.SNAKE_UPDATE, int(1000 / Global.SNAKE_SPEED))
+        pg.display.set_caption("Snake AI")
+
+    def create_snake(self) -> Snake:
+
+        x = int(Global.CELLS_X / 2)
+        y = int(Global.CELLS_Y / 2)
+
+        return Snake(
+            self.screen, 
+            initial_position=(x,y), 
+            initial_length=3, 
+            initial_direction=Direction.RIGHT
+        )
+
+    def reset(self):
+        self.snake = self.create_snake()
         self.food = self.spwan_food()
         self.score = Score(self.screen)
         self.game_over_button = GameOver(self.screen,on_quit_click=self.quit,on_restart_click=self.reset)
         self.state = GameState.STOPPED
         self.direction = None
-
-        pg.time.set_timer(Game.SNAKE_UPDATE, int(1000 / Global.SNAKE_SPEED))
-        pg.display.set_caption("Snake AI")
-
-    def create_snake():
-        pass
 
     def spwan_food(self):
 
@@ -61,6 +80,7 @@ class Game:
         return food
    
     def draw(self):
+
         self.playground.draw()
         self.food.draw()
         self.snake.draw()
@@ -95,60 +115,61 @@ class Game:
         result = result or snake_position.y < 0
         result = result or snake_position.y > Global.CELLS_Y - 1
         return result
-        
+
     def is_game_over(self):
-        return self.check_for_collision_with_barriers() or self.snake.check_for_collision()
+        # TODO : Check the influence of this condition : self.frame_iteration >= 100 * len(self.snake.body)
+        return self.check_for_collision_with_barriers() or self.snake.check_for_collision() # or self.frame_iteration >= 100 * len(self.snake.body)
     
     def game_over(self):
         if self.state != GameState.GAME_OVER:
             self.state = GameState.GAME_OVER
             self.snake.wall_sound.play()
-
-    def reset(self):
-        self.food = self.spwan_food()
-        self.snake = Snake(self.screen, initial_position=(15,15), initial_length=3, initial_direction=Direction.RIGHT)
-        self.score.value = 0
-        self.state = GameState.STOPPED
-
+            
     def quit(self):
         pg.quit()
         sys.exit()
 
-    def run(self) -> None:
-        
-        while True:
-            
-            ### Event Handling
-            for event in pg.event.get():
+    def start(self):
+        self.state = GameState.RUNNING
 
-                match event.type:
+    def step(self):
+                    
+        ### Event Handling
+        for event in pg.event.get():
 
-                    case self.SNAKE_UPDATE:
-                        self.update()
+            match event.type:
 
-                    case pg.QUIT:
-                        self.quit()
+                case self.SNAKE_UPDATE:
+                    self.update()
 
-                    case pg.KEYDOWN:
+                case pg.QUIT:
+                    self.quit()
 
-                        self.state = GameState.RUNNING
+                case pg.KEYDOWN:
 
-                        match event.key:
-                            case pg.K_UP:
-                                self.direction = Direction.UP
-                            case pg.K_DOWN:
-                                self.direction = Direction.DOWN
-                            case pg.K_LEFT:
-                                self.direction = Direction.LEFT
-                            case pg.K_RIGHT:
-                                self.direction = Direction.RIGHT
+                    if self.state == GameState.STOPPED:
+                        self.start()
 
-                    case pg.MOUSEBUTTONDOWN:
-                        if self.state == GameState.GAME_OVER:
-                            self.game_over_button.update()
+                    match event.key:
+                        case pg.K_UP:
+                            self.direction = Direction.UP
+                        case pg.K_DOWN:
+                            self.direction = Direction.DOWN
+                        case pg.K_LEFT:
+                            self.direction = Direction.LEFT
+                        case pg.K_RIGHT:
+                            self.direction = Direction.RIGHT
+
+                case pg.MOUSEBUTTONDOWN:
+                    if self.state == GameState.GAME_OVER:
+                        self.game_over_button.update()
             ### Drawing
             self.draw()
 
             ### Update the screen
             pg.display.update()
             self.clock.tick(Global.FRAMES_PER_SECOND)
+
+    def run(self) -> None:
+        while True:
+            self.step()
