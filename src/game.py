@@ -14,8 +14,7 @@ pg.init()
 
 class Mode(Enum):
     HUMAN_CONTROLLED = 0
-    TRAING_MODE = 1
-    AGENT_CONTROLLED = 2
+    AGENT_CONTROLLED = 1
 
 class GameState(Enum):
     STOPPED = 0
@@ -108,17 +107,24 @@ class Game:
             self.food = self.spwan_food()
             self.score.update()
 
-    def check_for_collision_with_barriers(self):
-        snake_position =  self.snake.position()
+    def check_for_collision_with_barriers(self, translation : Vector2 | None = None):
+
+        if translation is None:
+            translation = Vector2(0,0)
+
+        snake_position =  self.snake.position() + translation
         result = snake_position.x < 0
         result = result or snake_position.x > Global.CELLS_X - 1
         result = result or snake_position.y < 0
         result = result or snake_position.y > Global.CELLS_Y - 1
         return result
 
-    def is_game_over(self):
+    def is_game_over(self, translation : Vector2 | None = None):
         # TODO : Check the influence of this condition : self.frame_iteration >= 100 * len(self.snake.body)
-        return self.check_for_collision_with_barriers() or self.snake.check_for_collision() # or self.frame_iteration >= 100 * len(self.snake.body)
+        b = self.state == GameState.GAME_OVER
+        b = b or self.check_for_collision_with_barriers(translation)
+        b = b or self.snake.check_for_collision(translation)
+        return b
     
     def game_over(self):
         if self.state != GameState.GAME_OVER:

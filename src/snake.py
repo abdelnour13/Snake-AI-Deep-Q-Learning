@@ -206,6 +206,10 @@ class Snake:
         self.body.insert(0, tail)
         self.eat_sound.play()
 
-    def check_for_collision(self):
-        head = self.body[-1]
+    def check_for_collision(self, translation : Vector2 | None = None) -> bool:
+
+        if translation is None:
+            translation = Vector2(0,0)
+
+        head = self.body[-1] + translation
         return head in self.body[:-1]
