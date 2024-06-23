@@ -29,5 +29,5 @@ class LinearQNet(nn.Module):
         return self.forward(x).argmax(dim=-1)
     
     def save(self, name : str) -> None:
-        file_path = os.path.join('.','models', name)
+        file_path = os.path.join('.','checkpoints', name)
         return torch.save(self.state_dict(), file_path)

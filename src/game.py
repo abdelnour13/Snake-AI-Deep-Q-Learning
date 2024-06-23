@@ -90,9 +90,6 @@ class Game:
 
     def update(self):
 
-        if self.is_game_over():
-            self.game_over()
-
         if self.state != GameState.RUNNING:
             return
 
@@ -101,6 +98,9 @@ class Game:
             self.direction = None
 
         self.snake.update()
+
+        if self.is_game_over():
+            self.game_over()
 
         if self.food.position == self.snake.position():
             self.snake.grow()

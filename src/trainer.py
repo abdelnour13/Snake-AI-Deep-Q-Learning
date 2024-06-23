@@ -21,15 +21,16 @@ class Trainer:
 
         y = self.model(state)
         y_next = self.model(next_state)
+        y_next = torch.max(y_next, dim=-1).values
 
-        Q_new = torch.where(game_over, reward, reward + self.gamma * torch.max(y_next, dim=-1))
+        Q_new = torch.where(game_over, reward, reward.float() + self.gamma * y_next)
         target = y.clone()  
         mask = torch.eye(self.model.output_size, dtype=torch.bool)[action]
         target[mask] = Q_new
-        
-        loss = self.criterion(y, target)
+
         self.optimizer.zero_grad()
+        loss = self.criterion(target, y)
         loss.backward()
         self.optimizer.step()
 
-        return loss.item()
+        return loss

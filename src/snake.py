@@ -212,4 +212,8 @@ class Snake:
             translation = Vector2(0,0)
 
         head = self.body[-1] + translation
-        return head in self.body[:-1]
+        
+        if translation == Vector2(0,0):
+            return head in self.body[:-1]
+        else:
+            return head in self.body[1:]

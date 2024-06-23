@@ -20,11 +20,11 @@ class Agent:
     def __init__(self, 
         game : Game,
         max_memory : int = 100_000,
-        batch_size : int = 1000,
+        batch_size : int = 1024,
         learning_rate : float = 0.001,
-        max_games : int = 100,
-        max_epsilon : float = 0.9,
-        min_epsilon : float = 0.1,
+        max_games : int = 300,
+        max_epsilon : float = 0.4,
+        min_epsilon : float = 0.0,
         gamma : float = 0.9,
         training : bool = True     
     ) -> None:
@@ -41,26 +41,18 @@ class Agent:
         self.n_games = 0
         self.model = LinearQNet(11, 3, 256)
         self.trainer = Trainer(self.model, self.learning_rate, self.gamma)
-        self.reward = 0
         self.memory = deque(maxlen=self.max_memory)
         self.game = game
         self.current_score = self.game.score.value
 
-    def game_step(self):
+    def game_step(self) -> int:
         
-        ### Update the reward if a change in the game's score is detected
-        self.reward += (self.game.score.value - self.current_score)
-        self.current_score = self.game.score.value
-            
         ### The necessary logic to restart the game immediatly
         ### if our snake hits the borders
         if self.game.state == GameState.GAME_OVER:
-
-            self.reward -= 10
-
             if self.n_games < self.max_games:
-                self.n_games += 1
                 self.game.reset()
+                self.current_score = self.game.score.value
             else:
                 self.game.quit()
 
@@ -71,12 +63,22 @@ class Agent:
         for event in pg.event.get():
 
             match event.type:
-
-                case self.game.SNAKE_UPDATE:
-                    self.game.update()
-
                 case pg.QUIT:
                     self.game.quit()
+
+        self.game.update()
+
+        reward = 0
+
+        if self.game.state == GameState.GAME_OVER:
+            reward = -10
+            self.n_games += 1
+        else:
+            ### Update the reward if a change in the game's score is detected
+            # (self.game.score.value - self.current_score) * 10
+            if self.game.score.value != self.current_score:
+                reward = 10
+                self.current_score = self.game.score.value
 
         ### Drawing
         self.game.draw()
@@ -84,6 +86,8 @@ class Agent:
         ### Update the screen
         pg.display.update()
         self.game.clock.tick(Global.FRAMES_PER_SECOND)
+
+        return reward
 
     def is_danger(self, action : Action) -> bool:
         direction = self.get_direction_from_action(action)
@@ -97,8 +101,8 @@ class Agent:
         return torch.tensor([
             ### Danger
             self.is_danger(Action.STRAIGHT),
-            self.is_danger(Action.RIGHT),
             self.is_danger(Action.LEFT),
+            self.is_danger(Action.RIGHT),
 
             ### Direction
             self.game.snake.direction == Direction.UP,
@@ -111,7 +115,7 @@ class Agent:
             snake_position.x > food_position.x,
             snake_position.y < food_position.y,
             snake_position.y > food_position.y
-        ]).long()
+        ]).float()
 
     def remember(self, state : Tensor, action, reward : int, next_state : Tensor, game_over : bool):
         self.memory.append((state, action, reward, next_state, game_over))
@@ -121,7 +125,7 @@ class Agent:
         if len(self.memory) > self.batch_size:
             mini_sample = random.sample(self.memory, self.batch_size)
         else:
-            mini_sample = self.memory
+            mini_sample = list(self.memory)
 
         states, actions, rewards, next_states, game_overs = zip(*mini_sample)
 
@@ -131,7 +135,7 @@ class Agent:
         next_states = torch.stack(next_states)
         game_overs = torch.tensor(game_overs)
 
-        self.trainer.train_step((states, actions, rewards, next_states, game_overs))
+        return self.trainer.train_step(states, actions, rewards, next_states, game_overs)
 
     def train_sm(self, state : Tensor, action : int, reward : int, next_state : Tensor, game_over : bool):
 
@@ -141,7 +145,7 @@ class Agent:
         reward = torch.tensor([reward])
         game_over = torch.tensor([game_over])
         
-        self.trainer.train_step((state, action, reward, next_state, game_over))
+        return self.trainer.train_step(state, action, reward, next_state, game_over)
 
     def run(self):
 
@@ -160,28 +164,27 @@ class Agent:
             self.game.direction = self.get_direction_from_action(action)
 
             ### Get the reward,game state and the current score
-            self.game_step()
+            reward = self.game_step()
             new_state = self.get_state()
 
-            reward = self.reward
             game_over = self.game.is_game_over()
             score = self.game.score.value
 
             ### train the short memory
-            input = old_state, action.value, reward, new_state, game_over
-            self.train_sm(input)
+            self.train_sm(old_state, action.value, reward, new_state, game_over)
 
             ### store this in memory
-            self.memory.append(input)
+            self.remember(old_state, action.value, reward, new_state, game_over)
 
             if game_over:
 
                 ### train the long memory
+                loss = self.train_lm()
+
                 ### plotting
                 if score > best_score:
                     best_score = score
-                    self.model.save(f"models/{best_score}.pt")
-                    # TODO : save the model
+                    self.model.save(f"models_{best_score}.pt")
 
                 total += score
                 mean_score = total / self.n_games
@@ -189,18 +192,19 @@ class Agent:
                 mean_scores.append(mean_score)
 
                 plot(scores, mean_scores)
+                # print(self.n_games, score, best_score, mean_score, reward, loss.item())
 
-    def get_action(self) -> Action:
+    def get_action(self, state : Tensor) -> Action:
 
         p = random.random()
 
-        epsilon = (self.max_epsilon - self.min_epsilon) * (1 - self.n_games / self.max_games) + self.min_epsilon
+        epsilon = (self.max_epsilon - self.min_epsilon) * (1 - 3 * self.n_games / self.max_games) + self.min_epsilon
 
         if p < epsilon and self.training:
             action = random.choice(list(Action))
         else:
-            x = self.get_state().unsqueeze(0)
-            y = self.model.predict(x).squeeze().item()
+            x = state.unsqueeze(0)
+            y = self.model(x).squeeze().argmax().item()
             action = Action(y)
 
         return action
