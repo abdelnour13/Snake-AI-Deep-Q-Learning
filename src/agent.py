@@ -47,6 +47,10 @@ class Agent:
         self.memory = deque(maxlen=self.max_memory)
         self.game = game
 
+        if not self.training:
+            self.model.load()
+            self.model.eval()
+
     def is_danger(self, action : Action) -> bool:
         direction = self.get_direction_from_action(action)
         return self.game.is_game_over(direction.value)
@@ -87,9 +91,11 @@ class Agent:
         if p < epsilon and self.training:
             action = random.choice(list(Action))
         else:
-            x = state.unsqueeze(0)
-            y = self.model.forward(x)
-            y = y.squeeze().argmax().item()
+            with torch.inference_mode(mode=not self.training):
+                x = state.unsqueeze(0)
+                y = self.model.forward(x)
+                y = y.squeeze().argmax().item()
+
             action = Action(y)
 
         return action
@@ -150,8 +156,13 @@ class Agent:
         for event in pg.event.get():
 
             match event.type:
+
                 case pg.QUIT:
                     self.game.quit()
+
+                case pg.MOUSEBUTTONDOWN:
+                    if self.game.state == GameState.GAME_OVER and not self.training:
+                        self.game.game_over_button.update()
 
         ### Update the game
         food,is_game_over = self.game.update(direction)
@@ -212,13 +223,13 @@ class Agent:
                 self.plotter.add_score(score)
                 self.plotter.plot()
 
-            ### The necessary logic to restart the game immediatly
-            ### if our snake hits the borders
-            if self.game.state == GameState.GAME_OVER:
-                if self.n_games < self.max_games:
-                    self.game.reset()
-                else:
-                    self.game.quit()
+                ### The necessary logic to restart the game immediatly
+                ### if our snake hits the borders
+                if self.game.state == GameState.GAME_OVER:
+                    if self.n_games < self.max_games:
+                        self.game.reset()
+                    else:
+                        self.game.quit()
 
     def run(self):
         while True:

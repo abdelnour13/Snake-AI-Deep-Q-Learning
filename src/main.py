@@ -50,8 +50,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-epsilon", type=float, default=0.4)
     parser.add_argument("--min-epsilon", type=float, default=0.0)
     parser.add_argument("--gamma", type=float, default=0.9)
-    parser.add_argument("--training", type=bool, default=True)
-    parser.add_argument("--human", type=bool, default=False)
+    parser.add_argument("--training", type=lambda t : t.lower() == "true", default=True)
+    parser.add_argument("--human", type=lambda t : t.lower() == "true", default=False)
 
     args = parser.parse_args()
 

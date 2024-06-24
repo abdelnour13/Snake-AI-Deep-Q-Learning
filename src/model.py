@@ -31,3 +31,11 @@ class LinearQNet(nn.Module):
     def save(self, name : str) -> None:
         file_path = os.path.join('.','checkpoints', name)
         return torch.save(self.state_dict(), file_path)
+    
+    def load(self, name : str | None = None) -> None:
+
+        if name is None:
+            name = next(iter(sorted(os.listdir(os.path.join('.','checkpoints')), reverse=True, key=lambda x : int(x.split('_')[1].split('.')[0]))))
+            print(name)
+        file_path = os.path.join('.','checkpoints', name)
+        return self.load_state_dict(torch.load(file_path))
