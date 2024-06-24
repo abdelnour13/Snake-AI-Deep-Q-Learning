@@ -7,27 +7,28 @@ from collections import deque
 from game import Game,Direction,GameState
 from model import LinearQNet
 from trainer import Trainer
-from utils import plot
-from enum import Enum
-
-class Action(Enum):
-    STRAIGHT = 0
-    LEFT = 1
-    RIGHT = 2
+from utils import Plotter
+from enums import Action
 
 class Agent:
+
+    SNAKE_UPDATE = pg.USEREVENT
     
     def __init__(self, 
         game : Game,
         max_memory : int = 100_000,
         batch_size : int = 1024,
         learning_rate : float = 0.001,
-        max_games : int = 300,
+        max_games : int = 200,
         max_epsilon : float = 0.4,
         min_epsilon : float = 0.0,
         gamma : float = 0.9,
         training : bool = True     
     ) -> None:
+        
+        self.clock = pg.time.Clock()
+        self.direction = None
+        pg.time.set_timer(self.SNAKE_UPDATE, int(1000 / Global.SNAKE_SPEED))
         
         self.max_memory = max_memory
         self.batch_size = batch_size
@@ -39,55 +40,12 @@ class Agent:
         self.training = training
 
         self.n_games = 0
+        self.best_score = 0
         self.model = LinearQNet(11, 3, 256)
         self.trainer = Trainer(self.model, self.learning_rate, self.gamma)
+        self.plotter = Plotter()
         self.memory = deque(maxlen=self.max_memory)
         self.game = game
-        self.current_score = self.game.score.value
-
-    def game_step(self) -> int:
-        
-        ### The necessary logic to restart the game immediatly
-        ### if our snake hits the borders
-        if self.game.state == GameState.GAME_OVER:
-            if self.n_games < self.max_games:
-                self.game.reset()
-                self.current_score = self.game.score.value
-            else:
-                self.game.quit()
-
-        if self.game.state == GameState.STOPPED:
-            self.game.start()
-
-        ### Event Handling
-        for event in pg.event.get():
-
-            match event.type:
-                case pg.QUIT:
-                    self.game.quit()
-
-        self.game.update()
-
-        reward = 0
-
-        if self.game.state == GameState.GAME_OVER:
-            reward = -10
-            self.n_games += 1
-        else:
-            ### Update the reward if a change in the game's score is detected
-            # (self.game.score.value - self.current_score) * 10
-            if self.game.score.value != self.current_score:
-                reward = 10
-                self.current_score = self.game.score.value
-
-        ### Drawing
-        self.game.draw()
-
-        ### Update the screen
-        pg.display.update()
-        self.game.clock.tick(Global.FRAMES_PER_SECOND)
-
-        return reward
 
     def is_danger(self, action : Action) -> bool:
         direction = self.get_direction_from_action(action)
@@ -120,6 +78,41 @@ class Agent:
     def remember(self, state : Tensor, action, reward : int, next_state : Tensor, game_over : bool):
         self.memory.append((state, action, reward, next_state, game_over))
 
+    def get_action(self, state : Tensor) -> Action:
+
+        p = random.random()
+
+        epsilon = (self.max_epsilon - self.min_epsilon) * (1 - 3 * self.n_games / self.max_games) + self.min_epsilon
+
+        if p < epsilon and self.training:
+            action = random.choice(list(Action))
+        else:
+            x = state.unsqueeze(0)
+            y = self.model.forward(x)
+            y = y.squeeze().argmax().item()
+            action = Action(y)
+
+        return action
+
+    def get_direction_from_action(self, action : Action) -> Direction:
+        
+        if action == Action.STRAIGHT:
+            return self.game.snake.direction
+    
+        if action == Action.RIGHT:
+
+            if self.game.snake.direction in [Direction.UP,Direction.DOWN]:
+                return Direction.RIGHT
+            else:
+                return Direction.UP
+
+        if action == Action.LEFT:
+
+            if self.game.snake.direction in [Direction.UP,Direction.DOWN]:
+                return Direction.LEFT
+            else:
+                return Direction.DOWN
+
     def train_lm(self):
 
         if len(self.memory) > self.batch_size:
@@ -146,29 +139,58 @@ class Agent:
         game_over = torch.tensor([game_over])
         
         return self.trainer.train_step(state, action, reward, next_state, game_over)
+    
+    def game_step(self, direction : Direction) -> tuple[int, bool]:
+        
+        ### Start the game if it is stopped
+        if self.game.state == GameState.STOPPED:
+            self.game.start()
 
-    def run(self):
+        ### Event Handling
+        for event in pg.event.get():
 
-        best_score = 0
-        total = 0
-        scores = []
-        mean_scores = []
+            match event.type:
+                case pg.QUIT:
+                    self.game.quit()
 
-        while True:
+        ### Update the game
+        food,is_game_over = self.game.update(direction)
 
-            ### Get the old state
-            old_state = self.get_state()
+        ### Reward
+        reward = 0
 
-            ### Make a prediction
-            action : Action = self.get_action(old_state)
-            self.game.direction = self.get_direction_from_action(action)
+        if is_game_over:
+            reward = -10
+            self.n_games += 1
+        
+        if food:
+            reward = 10
 
-            ### Get the reward,game state and the current score
-            reward = self.game_step()
+        ### Drawing
+        self.game.draw()
+
+        ### Update the screen
+        pg.display.update()
+        self.clock.tick(Global.FRAMES_PER_SECOND)
+
+        return reward,is_game_over
+    
+    def step(self):
+
+        ### Get the old state
+        old_state = self.get_state()
+
+        ### Make a prediction or a random move
+        action : Action = self.get_action(old_state)
+        direction : Direction = self.get_direction_from_action(action)
+
+        ### Play a step in the game
+        reward,game_over = self.game_step(direction)
+
+        if self.training:
+            ### Get the new state, and the score
             new_state = self.get_state()
-
-            game_over = self.game.is_game_over()
-            score = self.game.score.value
+            score = self.game.score()
 
             ### train the short memory
             self.train_sm(old_state, action.value, reward, new_state, game_over)
@@ -176,60 +198,29 @@ class Agent:
             ### store this in memory
             self.remember(old_state, action.value, reward, new_state, game_over)
 
-            if game_over:
+        if game_over:
 
+            if self.training:
                 ### train the long memory
-                loss = self.train_lm()
+                self.train_lm()
 
                 ### plotting
-                if score > best_score:
-                    best_score = score
-                    self.model.save(f"models_{best_score}.pt")
+                if score > self.best_score:
+                    self.best_score = score
+                    self.model.save(f"models_{self.best_score}.pt")
 
-                total += score
-                mean_score = total / self.n_games
-                scores.append(score)
-                mean_scores.append(mean_score)
+                self.plotter.add_score(score)
+                self.plotter.plot()
 
-                plot(scores, mean_scores)
-                # print(self.n_games, score, best_score, mean_score, reward, loss.item())
+            ### The necessary logic to restart the game immediatly
+            ### if our snake hits the borders
+            if self.game.state == GameState.GAME_OVER:
+                if self.n_games < self.max_games:
+                    self.game.reset()
+                else:
+                    self.game.quit()
 
-    def get_action(self, state : Tensor) -> Action:
-
-        p = random.random()
-
-        epsilon = (self.max_epsilon - self.min_epsilon) * (1 - 3 * self.n_games / self.max_games) + self.min_epsilon
-
-        if p < epsilon and self.training:
-            action = random.choice(list(Action))
-        else:
-            x = state.unsqueeze(0)
-            y = self.model(x).squeeze().argmax().item()
-            action = Action(y)
-
-        return action
-
-    def get_direction_from_action(self, action : Action) -> Direction:
-        
-        if action == Action.STRAIGHT:
-            return self.game.snake.direction
-    
-        if action == Action.RIGHT:
-
-            if self.game.snake.direction in [Direction.UP,Direction.DOWN]:
-                return Direction.RIGHT
-            else:
-                return Direction.UP
-
-        if action == Action.LEFT:
-
-            if self.game.snake.direction in [Direction.UP,Direction.DOWN]:
-                return Direction.LEFT
-            else:
-                return Direction.DOWN
-
-if __name__ == '__main__':
-    game : Game = Game()
-    agent = Agent(game=game)
-    agent.run()
+    def run(self):
+        while True:
+            self.step()
         

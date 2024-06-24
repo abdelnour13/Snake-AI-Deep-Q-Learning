@@ -5,25 +5,14 @@ from pygame import Vector2
 from food import Food
 from snake import Snake,Direction
 from game_over import GameOver
-from enum import Enum
+from enums import GameState
 from score import Score
 from playground import Playgound
 from common import Global
 
 pg.init()
 
-class Mode(Enum):
-    HUMAN_CONTROLLED = 0
-    AGENT_CONTROLLED = 1
-
-class GameState(Enum):
-    STOPPED = 0
-    RUNNING = 1
-    GAME_OVER = 2
-
 class Game:
-
-    SNAKE_UPDATE = pg.USEREVENT
 
     def __init__(self) -> None:
 
@@ -32,12 +21,10 @@ class Game:
             Global.CELLS_Y * Global.CELL_WIDTH + 2 * Global.OFFSET
         ))
 
-        self.clock = pg.time.Clock()
         self.playground = Playgound(self.screen)
 
         self.reset()
 
-        pg.time.set_timer(Game.SNAKE_UPDATE, int(1000 / Global.SNAKE_SPEED))
         pg.display.set_caption("Snake AI")
 
     def create_snake(self) -> Snake:
@@ -55,10 +42,12 @@ class Game:
     def reset(self):
         self.snake = self.create_snake()
         self.food = self.spwan_food()
-        self.score = Score(self.screen)
+        self._score = Score(self.screen)
         self.game_over_button = GameOver(self.screen,on_quit_click=self.quit,on_restart_click=self.reset)
         self.state = GameState.STOPPED
-        self.direction = None
+
+    def score(self) -> int:
+        return self._score.value
 
     def spwan_food(self):
 
@@ -83,19 +72,18 @@ class Game:
         self.playground.draw()
         self.food.draw()
         self.snake.draw()
-        self.score.draw()
+        self._score.draw()
 
         if self.state == GameState.GAME_OVER:
             self.game_over_button.draw()
 
-    def update(self):
+    def update(self, direction : Direction | None = None) -> tuple[bool,bool]:
 
         if self.state != GameState.RUNNING:
-            return
+            return [False,self.state == GameState.GAME_OVER]
 
-        if self.direction is not None:
-            self.snake.set_direction(self.direction)
-            self.direction = None
+        if direction is not None:
+            self.snake.set_direction(direction)
 
         self.snake.update()
 
@@ -105,7 +93,10 @@ class Game:
         if self.food.position == self.snake.position():
             self.snake.grow()
             self.food = self.spwan_food()
-            self.score.update()
+            self._score.update()
+            return [True,False]
+        
+        return [False,False]
 
     def check_for_collision_with_barriers(self, translation : Vector2 | None = None):
 
@@ -137,45 +128,3 @@ class Game:
 
     def start(self):
         self.state = GameState.RUNNING
-
-    def step(self):
-                    
-        ### Event Handling
-        for event in pg.event.get():
-
-            match event.type:
-
-                case self.SNAKE_UPDATE:
-                    self.update()
-
-                case pg.QUIT:
-                    self.quit()
-
-                case pg.KEYDOWN:
-
-                    if self.state == GameState.STOPPED:
-                        self.start()
-
-                    match event.key:
-                        case pg.K_UP:
-                            self.direction = Direction.UP
-                        case pg.K_DOWN:
-                            self.direction = Direction.DOWN
-                        case pg.K_LEFT:
-                            self.direction = Direction.LEFT
-                        case pg.K_RIGHT:
-                            self.direction = Direction.RIGHT
-
-                case pg.MOUSEBUTTONDOWN:
-                    if self.state == GameState.GAME_OVER:
-                        self.game_over_button.update()
-            ### Drawing
-            self.draw()
-
-            ### Update the screen
-            pg.display.update()
-            self.clock.tick(Global.FRAMES_PER_SECOND)
-
-    def run(self) -> None:
-        while True:
-            self.step()

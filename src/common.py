@@ -6,7 +6,7 @@ class Global:
     OFFSET = 75
     PADDING = 2
     BARRIER_WIDTH = 3
-    SNAKE_SPEED = 60
+    SNAKE_SPEED = 5
 
     P_SCREEN_COLOR = (161,199,80)
     N_SCREEN_COLOR = (173,204,96)

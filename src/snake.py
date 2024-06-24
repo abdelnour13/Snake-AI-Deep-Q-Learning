@@ -1,14 +1,8 @@
 import pygame as pg
 import os
 from pygame import Vector2,Surface
-from enum import Enum
+from enums import Direction
 from common import Global
-
-class Direction(Enum):
-    RIGHT = Vector2(1,0)
-    LEFT = Vector2(-1,0)
-    UP = Vector2(0,-1)
-    DOWN = Vector2(0,1)
 
 class Snake:
 
