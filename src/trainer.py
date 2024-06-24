@@ -10,12 +10,14 @@ class Trainer:
         learning_rate : float = 0.001,
         gamma : float = 0.9,
         optimizer : optim.Optimizer = None,
-        criterion : nn.Module = None
+        criterion : nn.Module = None,
+        device : torch.device | None = None
     ) -> None:
         self.model = model
         self.gamma = gamma
+        self.device = device if device is not None else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.optimizer = optimizer if optimizer is not None else optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.criterion = criterion if criterion is not None else nn.MSELoss()
+        self.criterion = criterion if criterion is not None else nn.MSELoss().to(self.device)
 
     def train_step(self, state : Tensor, action : Tensor, reward : Tensor, next_state : Tensor, game_over : Tensor) -> Tensor:
 
@@ -25,7 +27,8 @@ class Trainer:
 
         Q_new = torch.where(game_over, reward, reward.float() + self.gamma * y_next)
         target = y.clone()  
-        mask = torch.eye(self.model.output_size, dtype=torch.bool)[action]
+        mask = torch.eye(self.model.output_size, dtype=torch.bool).to(self.device)
+        mask = mask[action]
         target[mask] = Q_new
 
         self.optimizer.zero_grad()

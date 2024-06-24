@@ -5,9 +5,9 @@ from torch import Tensor
 from common import Global
 from collections import deque
 from game import Game,Direction,GameState
-from model import LinearQNet
+from model import LinearQNet,ConvQNet
 from trainer import Trainer
-from utils import Plotter
+from plotter import Plotter
 from enums import Action
 
 class Agent:
@@ -23,7 +23,8 @@ class Agent:
         max_epsilon : float = 0.4,
         min_epsilon : float = 0.0,
         gamma : float = 0.9,
-        training : bool = True     
+        training : bool = True,
+        device : torch.device | None = None     
     ) -> None:
         
         self.clock = pg.time.Clock()
@@ -39,10 +40,11 @@ class Agent:
         self.gamma = gamma
         self.training = training
 
+        self.device = device if device is not None else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.n_games = 0
         self.best_score = 0
-        self.model = LinearQNet(11, 3, 256)
-        self.trainer = Trainer(self.model, self.learning_rate, self.gamma)
+        self.model = LinearQNet(input_size=11,hidden_size=256, output_size=3).to(self.device)
+        self.trainer = Trainer(self.model, self.learning_rate, self.gamma, device=self.device)
         self.plotter = Plotter()
         self.memory = deque(maxlen=self.max_memory)
         self.game = game
@@ -55,7 +57,31 @@ class Agent:
         direction = self.get_direction_from_action(action)
         return self.game.is_game_over(direction.value)
 
-    def get_state(self) -> torch.Tensor:
+    """def get_state(self) -> Tensor:
+
+        snake_position = self.game.snake.position()
+        food_position = self.game.food.position
+
+        return torch.tensor([
+            ### Danger
+            self.is_danger(Action.STRAIGHT),
+            self.is_danger(Action.LEFT),
+            self.is_danger(Action.RIGHT),
+
+            ### Direction
+            self.game.snake.direction == Direction.UP,
+            self.game.snake.direction == Direction.DOWN,
+            self.game.snake.direction == Direction.LEFT,
+            self.game.snake.direction == Direction.RIGHT,
+
+            ### Food
+            snake_position.x < food_position.x,
+            snake_position.x > food_position.x,
+            snake_position.y < food_position.y,
+            snake_position.y > food_position.y
+        ]).float()"""
+    
+    def get_state(self) -> Tensor:
 
         snake_position = self.game.snake.position()
         food_position = self.game.food.position
@@ -92,9 +118,9 @@ class Agent:
             action = random.choice(list(Action))
         else:
             with torch.inference_mode(mode=not self.training):
-                x = state.unsqueeze(0)
-                y = self.model.forward(x)
-                y = y.squeeze().argmax().item()
+                x = state.unsqueeze(0).to(self.device)
+                y = self.model.predict(x)
+                y = y.squeeze().item()
 
             action = Action(y)
 
@@ -119,7 +145,7 @@ class Agent:
             else:
                 return Direction.DOWN
 
-    def train_lm(self):
+    def train_lm(self) -> Tensor:
 
         if len(self.memory) > self.batch_size:
             mini_sample = random.sample(self.memory, self.batch_size)
@@ -128,21 +154,21 @@ class Agent:
 
         states, actions, rewards, next_states, game_overs = zip(*mini_sample)
 
-        states = torch.stack(states)
-        actions = torch.tensor(actions)
-        rewards = torch.tensor(rewards)
-        next_states = torch.stack(next_states)
-        game_overs = torch.tensor(game_overs)
+        states = torch.stack(states).to(self.device)
+        actions = torch.tensor(actions).to(self.device)
+        rewards = torch.tensor(rewards).to(self.device)
+        next_states = torch.stack(next_states).to(self.device)
+        game_overs = torch.tensor(game_overs).to(self.device)
 
         return self.trainer.train_step(states, actions, rewards, next_states, game_overs)
 
-    def train_sm(self, state : Tensor, action : int, reward : int, next_state : Tensor, game_over : bool):
+    def train_sm(self, state : Tensor, action : int, reward : int, next_state : Tensor, game_over : bool) -> None:
 
-        state = state.unsqueeze(0)
-        next_state = next_state.unsqueeze(0)
-        action = torch.tensor([action])
-        reward = torch.tensor([reward])
-        game_over = torch.tensor([game_over])
+        state = state.unsqueeze(0).to(self.device)
+        next_state = next_state.unsqueeze(0).to(self.device)
+        action = torch.tensor([action]).to(self.device)
+        reward = torch.tensor([reward]).to(self.device)
+        game_over = torch.tensor([game_over]).to(self.device)
         
         return self.trainer.train_step(state, action, reward, next_state, game_over)
     
@@ -186,7 +212,7 @@ class Agent:
 
         return reward,is_game_over
     
-    def step(self):
+    def step(self) -> None:
 
         ### Get the old state
         old_state = self.get_state()
@@ -231,7 +257,7 @@ class Agent:
                     else:
                         self.game.quit()
 
-    def run(self):
+    def run(self) -> None:
         while True:
             self.step()
         

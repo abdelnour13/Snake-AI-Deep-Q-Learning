@@ -1,6 +1,7 @@
 class Global:
-    CELLS_X = 20
-    CELLS_Y = 15
+
+    CELLS_X = 24
+    CELLS_Y = 24
     CELL_WIDTH = 30
     FRAMES_PER_SECOND = 60
     OFFSET = 75
