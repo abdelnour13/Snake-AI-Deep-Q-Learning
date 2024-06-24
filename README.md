@@ -28,6 +28,8 @@ git clone https://github.com/your-repository/Snake-AI-Deep-Q-Learning.git
 Ensure you have Python 3.x installed, then run:
 
 ```bash
+conda create -n snake-ai
+conda activate snake-ai
 pip install -r requirements.txt
 ```
 
