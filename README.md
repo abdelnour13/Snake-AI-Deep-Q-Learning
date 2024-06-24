@@ -9,8 +9,11 @@ Deep Q-Learning combines Q-Learning, a model-free reinforcement learning algorit
 ## Features
 
 - **Deep Q-Network (DQN):** Utilizes a neural network to approximate the Q-value function.
+
 - **Replay Memory:** Implements experience replay to store and reuse past experiences, improving learning efficiency.
+
 - **Epsilon-Greedy Strategy:** Employs an epsilon-greedy strategy for exploration and exploitation, balancing between taking the best known action and exploring new actions.
+
 - **Dynamic Learning Rate:** Adjusts the learning rate over time to improve convergence.
 
 ## Getting Started
@@ -20,7 +23,7 @@ To get started with this project, follow these steps:
 1. **Install Dependencies:**
 
 ```bash
-git clone https://github.com/your-repository/Snake-AI-Deep-Q-Learning.git
+git clone https://github.com/abdelnour13/Snake-AI-Deep-Q-Learning
 ```
 
 2. **Clone the Repository:**
