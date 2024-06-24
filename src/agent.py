@@ -5,7 +5,7 @@ from torch import Tensor
 from common import Global
 from collections import deque
 from game import Game,Direction,GameState
-from model import LinearQNet,ConvQNet
+from model import LinearQNet
 from trainer import Trainer
 from plotter import Plotter
 from enums import Action
@@ -53,34 +53,10 @@ class Agent:
             self.model.load()
             self.model.eval()
 
-    def is_danger(self, action : Action) -> bool:
+    def is_danger(self, action : list[Action]) -> bool:
         direction = self.get_direction_from_action(action)
         return self.game.is_game_over(direction.value)
 
-    """def get_state(self) -> Tensor:
-
-        snake_position = self.game.snake.position()
-        food_position = self.game.food.position
-
-        return torch.tensor([
-            ### Danger
-            self.is_danger(Action.STRAIGHT),
-            self.is_danger(Action.LEFT),
-            self.is_danger(Action.RIGHT),
-
-            ### Direction
-            self.game.snake.direction == Direction.UP,
-            self.game.snake.direction == Direction.DOWN,
-            self.game.snake.direction == Direction.LEFT,
-            self.game.snake.direction == Direction.RIGHT,
-
-            ### Food
-            snake_position.x < food_position.x,
-            snake_position.x > food_position.x,
-            snake_position.y < food_position.y,
-            snake_position.y > food_position.y
-        ]).float()"""
-    
     def get_state(self) -> Tensor:
 
         snake_position = self.game.snake.position()
@@ -104,6 +80,7 @@ class Agent:
             snake_position.y < food_position.y,
             snake_position.y > food_position.y
         ]).float()
+    
 
     def remember(self, state : Tensor, action, reward : int, next_state : Tensor, game_over : bool):
         self.memory.append((state, action, reward, next_state, game_over))
