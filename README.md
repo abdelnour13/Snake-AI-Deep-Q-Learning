@@ -14,8 +14,6 @@ Deep Q-Learning combines Q-Learning, a model-free reinforcement learning algorit
 
 - **Epsilon-Greedy Strategy:** Employs an epsilon-greedy strategy for exploration and exploitation, balancing between taking the best known action and exploring new actions.
 
-- **Dynamic Learning Rate:** Adjusts the learning rate over time to improve convergence.
-
 ## Getting Started
 
 To get started with this project, follow these steps:
