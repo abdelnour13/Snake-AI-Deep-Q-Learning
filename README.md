@@ -18,13 +18,15 @@ Deep Q-Learning combines Q-Learning, a model-free reinforcement learning algorit
 
 To get started with this project, follow these steps:
 
-1. **Install Dependencies:**
+1. **Clone the Repository:**
+
 
 ```bash
 git clone https://github.com/abdelnour13/Snake-AI-Deep-Q-Learning
 ```
 
-2. **Clone the Repository:**
+2. **Install Dependencies:**
+
 
 Ensure you have Python 3.x installed, then run:
 
