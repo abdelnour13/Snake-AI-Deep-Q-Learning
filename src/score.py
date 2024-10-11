@@ -1,7 +1,7 @@
 import pygame as pg
 import os
 from pygame import Surface
-from common import Global
+from common import Global,ASSETS_DIR,FONTS_DIR
 
 class Score:
 
@@ -9,9 +9,9 @@ class Score:
         self.screen = screen
         self.value = 0
         self.food = pg.transform.scale(
-            pg.image.load(os.path.join("assets", "food.png")), (Global.CELL_WIDTH * 1.25,Global.CELL_WIDTH * 1.25)
+            pg.image.load(os.path.join(ASSETS_DIR, "food.png")), (Global.CELL_WIDTH * 1.25,Global.CELL_WIDTH * 1.25)
         )
-        self.font = pg.font.Font(os.path.join("fonts", "Atop-R99O3.ttf"), 30)
+        self.font = pg.font.Font(os.path.join(FONTS_DIR, "Atop-R99O3.ttf"), 30)
 
     def draw(self):
 

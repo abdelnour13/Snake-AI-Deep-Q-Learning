@@ -1,3 +1,7 @@
+import sys
+sys.path.append('..')
+from definitions import ROOT_DIR,ASSETS_DIR, CHECKPOINTS_DIR, FONTS_DIR, SOUNDS_DIR
+
 class Global:
 
     CELLS_X = 24

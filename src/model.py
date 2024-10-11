@@ -2,6 +2,7 @@ import torch
 import os
 from torch import nn
 from torch import Tensor
+from common import CHECKPOINTS_DIR 
 
 class LinearQNet(nn.Module):
 
@@ -29,13 +30,13 @@ class LinearQNet(nn.Module):
         return self.forward(x).argmax(dim=-1)
     
     def save(self, name : str) -> None:
-        file_path = os.path.join('.','checkpoints', name)
+        file_path = os.path.join(CHECKPOINTS_DIR, name)
         return torch.save(self.state_dict(), file_path)
     
     def load(self, name : str | None = None) -> None:
 
         if name is None:
-            name = next(iter(sorted(os.listdir(os.path.join('.','checkpoints')), reverse=True, key=lambda x : int(x.split('_')[1].split('.')[0]))))
+            name = next(iter(sorted(os.listdir(CHECKPOINTS_DIR), reverse=True, key=lambda x : int(x.split('_')[1].split('.')[0]))))
             
-        file_path = os.path.join('.','checkpoints', name)
+        file_path = os.path.join(CHECKPOINTS_DIR, name)
         return self.load_state_dict(torch.load(file_path))

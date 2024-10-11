@@ -1,6 +1,6 @@
 import pygame as pg
 import os
-from common import Global
+from common import Global,FONTS_DIR
 from pygame import Surface
 
 class GameOver:
@@ -8,7 +8,7 @@ class GameOver:
     def __init__(self, screen : Surface,on_restart_click,on_quit_click) -> None:
         self.screen = screen
         self.height = 4
-        self.fancy_font = pg.font.Font(os.path.join("fonts", "Atop-R99O3.ttf"), 40)
+        self.fancy_font = pg.font.Font(os.path.join(FONTS_DIR, "Atop-R99O3.ttf"), 40)
         self.regular_font = pg.font.Font(None, 25)
         self.restart_rect = None
         self.quit_rect = None

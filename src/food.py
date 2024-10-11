@@ -1,7 +1,7 @@
 import pygame as pg
 import os
 from pygame import Vector2,Surface
-from common import Global
+from common import Global,ASSETS_DIR
 
 class Food:
 
@@ -12,7 +12,7 @@ class Food:
         self.screen = screen
         self.position = Vector2(position)
         self.food_surface = pg.transform.scale(
-            pg.image.load(os.path.join("assets", "food.png")), (Global.CELL_WIDTH,Global.CELL_WIDTH)
+            pg.image.load(os.path.join(ASSETS_DIR, "food.png")), (Global.CELL_WIDTH,Global.CELL_WIDTH)
         )
 
     def draw(self):

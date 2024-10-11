@@ -2,7 +2,7 @@ import pygame as pg
 import os
 from pygame import Vector2,Surface
 from enums import Direction
-from common import Global
+from common import Global,SOUNDS_DIR,ASSETS_DIR
 
 class Snake:
 
@@ -19,17 +19,17 @@ class Snake:
         self.body = [Vector2(x + i - initial_length + 1, y) for i in range(initial_length)]
         self.direction = initial_direction
         self.assets = self.load_assets()
-        self.eat_sound = pg.mixer.Sound(os.path.join('sounds', 'eat.mp3'))
-        self.wall_sound = pg.mixer.Sound(os.path.join('sounds', 'wall.mp3'))
+        self.eat_sound = pg.mixer.Sound(os.path.join(SOUNDS_DIR, 'eat.mp3'))
+        self.wall_sound = pg.mixer.Sound(os.path.join(SOUNDS_DIR, 'wall.mp3'))
 
     def load_assets(self) -> dict[str,Surface]:
 
         result = {}
 
-        for asset_name in os.listdir('assets'):
+        for asset_name in os.listdir(ASSETS_DIR):
             name,_ = os.path.splitext(asset_name)
             result[name] = pg.transform.scale(
-                pg.image.load(os.path.join('assets', asset_name)), (Global.CELL_WIDTH,Global.CELL_WIDTH)
+                pg.image.load(os.path.join(ASSETS_DIR, asset_name)), (Global.CELL_WIDTH,Global.CELL_WIDTH)
             )
 
         return result
