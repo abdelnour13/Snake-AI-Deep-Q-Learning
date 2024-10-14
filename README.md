@@ -2,6 +2,8 @@
 
 This project implements a Snake AI using the Deep Q-Learning algorithm. The goal is to create an intelligent agent capable of playing the Snake game, making decisions based on its understanding of the game environment to maximize its score.
 
+<img src="demo/demo.png" alt="Demo" />
+
 ## Overview
 
 Deep Q-Learning combines Q-Learning, a model-free reinforcement learning algorithm, with deep neural networks. This approach enables the AI to learn optimal policies for deciding the next move in the game, considering the current state of the environment.
